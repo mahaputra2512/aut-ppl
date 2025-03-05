@@ -1,48 +1,74 @@
 name: OTF Testing
 on:
   push:
-      branches:
-        - main
+    branches:
+      - main
+
 jobs:
   test:
-      name: Functional Test
-      permissions: write-all
-      runs-on: ubuntu-latest
-      steps:
-        - name: Checkout the repo
-          uses: actions/checkout@v4
+    name: Functional Test on ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    permissions: write-all
+    strategy:
+      matrix:
+        browser: [firefox, chrome, edge]
+    steps:
+      - name: Checkout the Repo
+        uses: actions/checkout@v4
 
-        - name: Create isolated network
-          run: docker network create --driver bridge isolated
+      - name: Create isolated network
+        run: docker network create --driver bridge isolated
 
-        - name: Deploy AUT
-          run: docker build -t my-php-site:latest .
+      - name: Deploy AUT
+        run: docker build -t my-php-site:latest .
 
-        - name: Run AUT
-          run: docker run --network=isolated -p 80:80 --name docker-apache -t -d my-php-site:latest
+      - name: Run AUT
+        run: docker run --network=isolated -p 80:80 --name docker-apache -t -d my-php-site:latest
 
-        - name: Get AUT URL
-          run: |
-            URL=http://$(ip -f inet -o addr show docker0 | awk '{print $4}' | cut -d '/' -f 1)
-            echo "URL=$URL" >> $GITHUB_ENV
-            
-        - name: Check AUT Url
-          run: curl ${{ env.URL }}
-          
-        - name: Selenium Preparation
-          run: docker run --network=isolated -d -p 4444:4444 -p 7900:7900 -v /dev/shm:/dev/shm --name firefox-standalone selenium/standalone-firefox:latest
+      - name: Get AUT URL
+        run: |
+          URL=http://$(ip -f inet -o addr show docker0 | awk '{print $4}' | cut -d '/' -f 1)
+          echo "URL=$URL" >> $GITHUB_ENV
 
-        - name: Wait for Selenium Hub
-          run: sh wait.sh
+      - name: Check AUT URL
+        run: curl ${{ env.URL }}
 
-        - name: Check the Hub
-          run: curl http://localhost:4444/ui
+      - name: Selenium Preparation
+        run: |
+          if [ "${{ matrix.browser }}" = "firefox" ]; then
+            IMAGE="selenium/standalone-firefox:latest"
+          elif [ "${{ matrix.browser }}" = "chrome" ]; then
+            IMAGE="selenium/standalone-chrome:latest"
+          elif [ "${{ matrix.browser }}" = "edge" ]; then
+            IMAGE="selenium/standalone-edge:latest"
+          else
+            echo "Unsupported browser: ${{ matrix.browser }}"
+            exit 1
+          fi
+          docker run --network=isolated -d -p 4444:4444 -p 7900:7900 -v /dev/shm:/dev/shm --name ${{ matrix.browser }}-standalone $IMAGE
 
-        - name: Install Selenium client
-          run: pip install -U selenium
-          
-        - name: Run test
-          run: python tests/hello_aut.py ${{ env.URL }}
+      - name: Wait for Selenium Hub
+        run: sh wait.sh
 
-        - name: stop docker
-          run: docker stop docker-apache
+      - name: Check Hub
+        run: curl http://localhost:4444/ui
+
+      - name: Install Selenium Client
+        run: pip install selenium
+
+      - name: Run Tests
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: python tests/hello_aut.py ${{ env.URL }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Screenshot-${{ matrix.browser }}
+          path: screenshot.png
+
+      - name: Stop Selenium Container
+        run: docker stop ${{ matrix.browser }}-standalone
+
+      - name: Stop AUT Container
+        run: docker stop docker-apache
