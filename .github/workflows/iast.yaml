@@ -16,10 +16,10 @@ jobs:
         - name: Set up SonarCloud Scanner
           uses: SonarSource/sonarcloud-github-action@master
           env:
-            SONAR_TOKEN: 73b64fe57b47a5743ba9da4e5139f05f792e46b9
+            SONAR_TOKEN: e8045cc7f6b216ce4c31ebe22de974e173fdc4b0
           with:
             args: >
-              -Dsonar.organization=siddiqodiq
+              -Dsonar.organization=mahaputra2512
               -Dsonar.projectKey=siddiqodiq_aut2025
   sats:
     name: Psalm
