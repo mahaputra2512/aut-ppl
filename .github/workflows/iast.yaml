@@ -36,7 +36,5 @@ jobs:
           target: ${{ env.URL }}
           network_name: isolated
 
-      - name: stop docker
+      - name: Stop Docker
         run: docker stop docker-apache
-
-      -
