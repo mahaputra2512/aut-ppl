@@ -20,7 +20,7 @@ jobs:
           with:
             args: >
               -Dsonar.organization=mahaputra2512
-              -Dsonar.projectKey=siddiqodiq_aut2025
+              -Dsonar.projectKey=mahaputra2512_aut-ppl
   sats:
     name: Psalm
     runs-on: ubuntu-latest
